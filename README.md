@@ -34,7 +34,9 @@ Execute the Maven build on the root of the project:
 
 - Run tests with coverage: `./mvnw test` (or `.\mvnw.cmd test` on Windows).
 - JaCoCo HTML report: `target/site/jacoco/index.html`.
-- CI: GitHub Actions workflow `.github/workflows/ci.yml` runs tests on push/PR and publishes the JaCoCo report as an artifact.
+- Coverage threshold: The build enforces a minimum of 80% code coverage (instruction and branch coverage).
+- Check coverage threshold: `./mvnw verify` (or `.\mvnw.cmd verify` on Windows) - this will fail if coverage is below 80%.
+- CI: GitHub Actions workflow `.github/workflows/ci.yml` runs tests on push/PR, enforces coverage threshold, and publishes the JaCoCo report as an artifact.
 
 ## Running the demo
 
