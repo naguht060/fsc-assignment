@@ -30,6 +30,12 @@ Execute the Maven build on the root of the project:
 ./mvnw package
 ```
 
+### Tests and coverage
+
+- Run tests with coverage: `./mvnw test` (or `.\mvnw.cmd test` on Windows).
+- JaCoCo HTML report: `target/site/jacoco/index.html`.
+- CI: GitHub Actions workflow `.github/workflows/ci.yml` runs tests on push/PR and publishes the JaCoCo report as an artifact.
+
 ## Running the demo
 
 ### Live coding with Quarkus

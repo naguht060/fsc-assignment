@@ -29,8 +29,6 @@ public class StoreResource {
 
   @Inject StoreService storeService;
 
-  @Inject LegacyStoreManagerGateway legacyStoreManagerGateway;
-
   private static final Logger LOGGER = Logger.getLogger(StoreResource.class.getName());
 
   @GET
@@ -47,7 +45,6 @@ public class StoreResource {
   @POST
   public Response create(Store store) {
     Store created = storeService.create(store);
-    legacyStoreManagerGateway.createStoreOnLegacySystem(store);
 
     return Response.ok(created).status(201).build();
   }
@@ -55,19 +52,13 @@ public class StoreResource {
   @PUT
   @Path("{id}")
   public Store update(Long id, Store updatedStore) {
-    Store entity = storeService.update(id, updatedStore);
-    legacyStoreManagerGateway.updateStoreOnLegacySystem(updatedStore);
-
-    return entity;
+    return storeService.update(id, updatedStore);
   }
 
   @PATCH
   @Path("{id}")
   public Store patch(Long id, Store updatedStore) {
-    Store entity = storeService.patch(id, updatedStore);
-    legacyStoreManagerGateway.updateStoreOnLegacySystem(updatedStore);
-
-    return entity;
+    return storeService.patch(id, updatedStore);
   }
 
   @DELETE

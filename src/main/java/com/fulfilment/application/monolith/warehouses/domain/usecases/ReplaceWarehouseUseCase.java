@@ -51,6 +51,9 @@ public class ReplaceWarehouseUseCase implements ReplaceWarehouseOperation {
     if (newWarehouse.stock == null || newWarehouse.stock < 0) {
       throw new IllegalArgumentException("Stock cannot be negative");
     }
+    if (newWarehouse.stock > newWarehouse.capacity) {
+      throw new IllegalArgumentException("Stock cannot exceed capacity");
+    }
 
     // Additional Validations for Replacing a Warehouse
     // Stock Matching
@@ -101,6 +104,6 @@ public class ReplaceWarehouseUseCase implements ReplaceWarehouseOperation {
     newWarehouse.createdAt = LocalDateTime.now();
     newWarehouse.archivedAt = null;
 
-    warehouseStore.update(newWarehouse);
+    warehouseStore.create(newWarehouse);
   }
 }

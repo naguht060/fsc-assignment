@@ -1,12 +1,11 @@
 package com.fulfilment.application.monolith.warehouses.adapters.restapi;
 
 import com.fulfilment.application.monolith.warehouses.adapters.database.WarehouseRepository;
-import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse as DomainWarehouse;
+import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
 import com.fulfilment.application.monolith.warehouses.domain.ports.ArchiveWarehouseOperation;
 import com.fulfilment.application.monolith.warehouses.domain.ports.CreateWarehouseOperation;
 import com.fulfilment.application.monolith.warehouses.domain.ports.ReplaceWarehouseOperation;
 import com.warehouse.api.WarehouseResource;
-import com.warehouse.api.beans.Warehouse;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
@@ -24,13 +23,14 @@ public class WarehouseResourceImpl implements WarehouseResource {
   @Inject ArchiveWarehouseOperation archiveWarehouseOperation;
 
   @Override
-  public List<Warehouse> listAllWarehousesUnits() {
+  public List<com.warehouse.api.beans.Warehouse> listAllWarehousesUnits() {
     return warehouseRepository.getAll().stream().map(this::toWarehouseResponse).toList();
   }
 
   @Override
-  public Warehouse createANewWarehouseUnit(@NotNull Warehouse data) {
-    DomainWarehouse warehouse = toDomainWarehouse(data);
+  public com.warehouse.api.beans.Warehouse createANewWarehouseUnit(
+      @NotNull com.warehouse.api.beans.Warehouse data) {
+    Warehouse warehouse = toDomainWarehouse(data);
     try {
       createWarehouseOperation.create(warehouse);
     } catch (IllegalArgumentException e) {
@@ -40,7 +40,7 @@ public class WarehouseResourceImpl implements WarehouseResource {
   }
 
   @Override
-  public Warehouse getAWarehouseUnitByID(String id) {
+  public com.warehouse.api.beans.Warehouse getAWarehouseUnitByID(String id) {
     Long numericId;
     try {
       numericId = Long.valueOf(id);
@@ -70,7 +70,7 @@ public class WarehouseResourceImpl implements WarehouseResource {
       throw new jakarta.ws.rs.NotFoundException("Warehouse not found with id " + id);
     }
 
-    DomainWarehouse warehouse = entity.toWarehouse();
+    Warehouse warehouse = entity.toWarehouse();
 
     try {
       archiveWarehouseOperation.archive(warehouse);
@@ -80,9 +80,9 @@ public class WarehouseResourceImpl implements WarehouseResource {
   }
 
   @Override
-  public Warehouse replaceTheCurrentActiveWarehouse(
-      String businessUnitCode, @NotNull Warehouse data) {
-    DomainWarehouse warehouse = toDomainWarehouse(data);
+  public com.warehouse.api.beans.Warehouse replaceTheCurrentActiveWarehouse(
+      String businessUnitCode, @NotNull com.warehouse.api.beans.Warehouse data) {
+    Warehouse warehouse = toDomainWarehouse(data);
     // Ensure the business unit code from the path is used as the identifier
     warehouse.businessUnitCode = businessUnitCode;
 
@@ -95,8 +95,8 @@ public class WarehouseResourceImpl implements WarehouseResource {
     return toWarehouseResponse(warehouse);
   }
 
-  private Warehouse toWarehouseResponse(DomainWarehouse warehouse) {
-    var response = new Warehouse();
+  private com.warehouse.api.beans.Warehouse toWarehouseResponse(Warehouse warehouse) {
+    var response = new com.warehouse.api.beans.Warehouse();
     response.setBusinessUnitCode(warehouse.businessUnitCode);
     response.setLocation(warehouse.location);
     response.setCapacity(warehouse.capacity);
@@ -105,8 +105,8 @@ public class WarehouseResourceImpl implements WarehouseResource {
     return response;
   }
 
-  private DomainWarehouse toDomainWarehouse(Warehouse warehouse) {
-    var domain = new DomainWarehouse();
+  private Warehouse toDomainWarehouse(com.warehouse.api.beans.Warehouse warehouse) {
+    var domain = new Warehouse();
     domain.businessUnitCode = warehouse.getBusinessUnitCode();
     domain.location = warehouse.getLocation();
     domain.capacity = warehouse.getCapacity();

@@ -2,12 +2,20 @@ package com.fulfilment.application.monolith.stores;
 
 import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.transaction.Synchronization;
 import jakarta.transaction.Transactional;
+import jakarta.transaction.TransactionSynchronizationRegistry;
+import jakarta.transaction.Status;
 import jakarta.ws.rs.WebApplicationException;
 import java.util.List;
 
 @ApplicationScoped
 public class StoreService {
+
+  @Inject LegacyStoreManagerGateway legacyStoreManagerGateway;
+
+  @Inject TransactionSynchronizationRegistry transactionSynchronizationRegistry;
 
   public List<Store> listAll() {
     return Store.listAll(Sort.by("name"));
@@ -28,6 +36,7 @@ public class StoreService {
     }
 
     store.persist();
+    runAfterCommit(() -> legacyStoreManagerGateway.createStoreOnLegacySystem(store));
     return store;
   }
 
@@ -42,6 +51,7 @@ public class StoreService {
     entity.name = updatedStore.name;
     entity.quantityProductsInStock = updatedStore.quantityProductsInStock;
 
+    runAfterCommit(() -> legacyStoreManagerGateway.updateStoreOnLegacySystem(updatedStore));
     return entity;
   }
 
@@ -61,6 +71,7 @@ public class StoreService {
       entity.quantityProductsInStock = updatedStore.quantityProductsInStock;
     }
 
+    runAfterCommit(() -> legacyStoreManagerGateway.updateStoreOnLegacySystem(updatedStore));
     return entity;
   }
 
@@ -68,6 +79,21 @@ public class StoreService {
   public void delete(Long id) {
     Store entity = findByIdOrThrow(id);
     entity.delete();
+  }
+
+  private void runAfterCommit(Runnable action) {
+    transactionSynchronizationRegistry.registerInterposedSynchronization(
+        new Synchronization() {
+          @Override
+          public void beforeCompletion() {}
+
+          @Override
+          public void afterCompletion(int status) {
+            if (status == Status.STATUS_COMMITTED) {
+              action.run();
+            }
+          }
+        });
   }
 }
 
