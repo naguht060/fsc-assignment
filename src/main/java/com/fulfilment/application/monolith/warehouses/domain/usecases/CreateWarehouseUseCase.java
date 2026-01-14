@@ -6,6 +6,7 @@ import com.fulfilment.application.monolith.warehouses.domain.ports.LocationResol
 import com.fulfilment.application.monolith.warehouses.domain.ports.CreateWarehouseOperation;
 import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStore;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -15,6 +16,7 @@ public class CreateWarehouseUseCase implements CreateWarehouseOperation {
   private final WarehouseStore warehouseStore;
   private final LocationResolver locationResolver;
 
+  @Inject
   public CreateWarehouseUseCase(WarehouseStore warehouseStore, LocationResolver locationResolver) {
     this.warehouseStore = warehouseStore;
     this.locationResolver = locationResolver;

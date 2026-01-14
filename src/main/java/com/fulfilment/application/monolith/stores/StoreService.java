@@ -83,17 +83,25 @@ public class StoreService {
 
   private void runAfterCommit(Runnable action) {
     transactionSynchronizationRegistry.registerInterposedSynchronization(
-        new Synchronization() {
-          @Override
-          public void beforeCompletion() {}
+        new AfterCommitSynchronization(action));
+  }
 
-          @Override
-          public void afterCompletion(int status) {
-            if (status == Status.STATUS_COMMITTED) {
-              action.run();
-            }
-          }
-        });
+  private static class AfterCommitSynchronization implements Synchronization {
+    private final Runnable action;
+
+    AfterCommitSynchronization(Runnable action) {
+      this.action = action;
+    }
+
+    @Override
+    public void beforeCompletion() {}
+
+    @Override
+    public void afterCompletion(int status) {
+      if (status == Status.STATUS_COMMITTED) {
+        action.run();
+      }
+    }
   }
 }
 

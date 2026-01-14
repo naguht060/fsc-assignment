@@ -1,13 +1,16 @@
 package com.fulfilment.application.monolith.warehouses.adapters.restapi;
 
+import com.fulfilment.application.monolith.warehouses.adapters.database.DbWarehouse;
 import com.fulfilment.application.monolith.warehouses.adapters.database.WarehouseRepository;
 import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
 import com.fulfilment.application.monolith.warehouses.domain.ports.ArchiveWarehouseOperation;
 import com.fulfilment.application.monolith.warehouses.domain.ports.CreateWarehouseOperation;
 import com.fulfilment.application.monolith.warehouses.domain.ports.ReplaceWarehouseOperation;
 import com.warehouse.api.WarehouseResource;
+import io.quarkus.hibernate.orm.panache.Panache;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
@@ -24,10 +27,13 @@ public class WarehouseResourceImpl implements WarehouseResource {
 
   @Override
   public List<com.warehouse.api.beans.Warehouse> listAllWarehousesUnits() {
-    return warehouseRepository.getAll().stream().map(this::toWarehouseResponse).toList();
+    return warehouseRepository.list("archivedAt is null").stream()
+        .map(this::toWarehouseResponse)
+        .toList();
   }
 
   @Override
+  @Transactional
   public com.warehouse.api.beans.Warehouse createANewWarehouseUnit(
       @NotNull com.warehouse.api.beans.Warehouse data) {
     Warehouse warehouse = toDomainWarehouse(data);
@@ -36,7 +42,14 @@ public class WarehouseResourceImpl implements WarehouseResource {
     } catch (IllegalArgumentException e) {
       throw new jakarta.ws.rs.BadRequestException(e.getMessage(), e);
     }
-    return toWarehouseResponse(warehouse);
+    // Flush to ensure the entity is persisted before querying
+    Panache.getEntityManager().flush();
+    // Retrieve the created entity to get the id
+    var entity = warehouseRepository.find("businessUnitCode = ?1 and archivedAt is null", warehouse.businessUnitCode).firstResult();
+    if (entity == null) {
+      throw new jakarta.ws.rs.InternalServerErrorException("Failed to retrieve created warehouse");
+    }
+    return toWarehouseResponse(entity);
   }
 
   @Override
@@ -53,10 +66,11 @@ public class WarehouseResourceImpl implements WarehouseResource {
       throw new jakarta.ws.rs.NotFoundException("Warehouse not found with id " + id);
     }
 
-    return toWarehouseResponse(entity.toWarehouse());
+    return toWarehouseResponse(entity);
   }
 
   @Override
+  @Transactional
   public void archiveAWarehouseUnitByID(String id) {
     Long numericId;
     try {
@@ -80,6 +94,7 @@ public class WarehouseResourceImpl implements WarehouseResource {
   }
 
   @Override
+  @Transactional
   public com.warehouse.api.beans.Warehouse replaceTheCurrentActiveWarehouse(
       String businessUnitCode, @NotNull com.warehouse.api.beans.Warehouse data) {
     Warehouse warehouse = toDomainWarehouse(data);
@@ -92,15 +107,23 @@ public class WarehouseResourceImpl implements WarehouseResource {
       throw new jakarta.ws.rs.BadRequestException(e.getMessage(), e);
     }
 
-    return toWarehouseResponse(warehouse);
+    // Flush to ensure the entity is persisted before querying
+    Panache.getEntityManager().flush();
+    // Retrieve the created entity to get the id
+    var entity = warehouseRepository.find("businessUnitCode = ?1 and archivedAt is null", warehouse.businessUnitCode).firstResult();
+    if (entity == null) {
+      throw new jakarta.ws.rs.InternalServerErrorException("Failed to retrieve created warehouse");
+    }
+    return toWarehouseResponse(entity);
   }
 
-  private com.warehouse.api.beans.Warehouse toWarehouseResponse(Warehouse warehouse) {
+  private com.warehouse.api.beans.Warehouse toWarehouseResponse(DbWarehouse entity) {
     var response = new com.warehouse.api.beans.Warehouse();
-    response.setBusinessUnitCode(warehouse.businessUnitCode);
-    response.setLocation(warehouse.location);
-    response.setCapacity(warehouse.capacity);
-    response.setStock(warehouse.stock);
+    response.setId(entity.id != null ? entity.id.toString() : null);
+    response.setBusinessUnitCode(entity.businessUnitCode);
+    response.setLocation(entity.location);
+    response.setCapacity(entity.capacity);
+    response.setStock(entity.stock);
 
     return response;
   }

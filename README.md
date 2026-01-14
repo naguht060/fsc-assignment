@@ -32,6 +32,33 @@ Execute the Maven build on the root of the project:
 
 ### Tests and coverage
 
+**Running Tests:**
+
+Tests require a PostgreSQL database. You have two options:
+
+**Option 1: Using Docker (Recommended)**
+```bash
+# Start PostgreSQL container
+docker run -it --rm=true --name quarkus_test \
+  -e POSTGRES_USER=quarkus_test \
+  -e POSTGRES_PASSWORD=quarkus_test \
+  -e POSTGRES_DB=quarkus_test \
+  -p 5432:5432 postgres:13.3
+
+# In another terminal, run tests
+./mvnw test
+```
+
+**Option 2: Using Dev Services (Requires Docker Desktop running)**
+- Ensure Docker Desktop is running
+- Dev services will automatically start PostgreSQL when you run tests
+- Run: `./mvnw test`
+
+**Option 3: Using Existing PostgreSQL**
+- Update `src/test/resources/application.properties` with your PostgreSQL connection details
+- Run: `./mvnw test`
+
+**Coverage:**
 - Run tests with coverage: `./mvnw test` (or `.\mvnw.cmd test` on Windows).
 - JaCoCo HTML report: `target/site/jacoco/index.html`.
 - Coverage threshold: The build enforces a minimum of 80% code coverage (instruction and branch coverage).
