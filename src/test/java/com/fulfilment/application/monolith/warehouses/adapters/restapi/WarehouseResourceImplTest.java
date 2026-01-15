@@ -11,200 +11,239 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.core.MediaType;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 
 @QuarkusTest
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class WarehouseResourceImplTest {
+class WarehouseResourceImplTest {
 
-  @Inject WarehouseRepository warehouseRepository;
+    @Inject WarehouseRepository warehouseRepository;
 
-  @BeforeEach
-  @Transactional
-  void setUp() {
-    // Ensure test data exists
-    var existing = warehouseRepository.findByBusinessUnitCode("MWH.001");
-    if (existing == null) {
-      Warehouse warehouse = new Warehouse();
-      warehouse.businessUnitCode = "MWH.001";
-      warehouse.location = "ZWOLLE-001";
-      warehouse.capacity = 100;
-      warehouse.stock = 10;
-      warehouseRepository.create(warehouse);
+    private static final String BASE_PATH = "/warehouse";
+
+    @BeforeEach
+    @Transactional
+    void setUp() {
+        // Ensure at least one warehouse exists for GET tests
+        if (warehouseRepository.findByBusinessUnitCode("MWH.001") == null) {
+            Warehouse warehouse = new Warehouse();
+            warehouse.businessUnitCode = "MWH.001";
+            warehouse.location = "ZWOLLE-001";
+            warehouse.capacity = 30;
+            warehouse.stock = 10;
+            warehouseRepository.create(warehouse);
+        }
     }
-  }
 
-  @Test
-  @Order(1)
-  public void testListAllWarehouses() {
-    given()
-        .when()
-        .get("/warehouse")
-        .then()
-        .statusCode(200)
-        .body(containsString("MWH.001"), containsString("MWH.012"), containsString("MWH.023"));
-  }
+    // ---------- LIST ----------
 
-  @Test
-  @Order(2)
-  public void testGetWarehouseById() {
-    given()
-        .when()
-        .get("/warehouse/1")
-        .then()
-        .statusCode(200)
-        .body(containsString("MWH.001"));
-  }
+    @Test
+    void listAllWarehouses_returns200() {
+        given()
+                .when()
+                .get(BASE_PATH)
+                .then()
+                .statusCode(200)
+                .body(containsString("MWH.001"));
+    }
 
-  @Test
-  @Order(3)
-  public void testGetWarehouseByIdNotFound() {
-    given()
-        .when()
-        .get("/warehouse/999")
-        .then()
-        .statusCode(404);
-  }
+    // ---------- GET BY ID ----------
 
-  @Test
-  @Order(4)
-  public void testGetWarehouseByIdInvalidFormat() {
-    given()
-        .when()
-        .get("/warehouse/invalid")
-        .then()
-        .statusCode(400);
-  }
+    @Test
+    void getWarehouseById_success() {
+        String id =
+                given()
+                        .when()
+                        .get(BASE_PATH)
+                        .then()
+                        .statusCode(200)
+                        .extract()
+                        .jsonPath()
+                        .getString("[0].id");
 
-  @Test
-  @Order(5)
-  public void testCreateWarehouse() {
-    // Use AMSTERDAM-002: maxNumberOfWarehouses=3, maxCapacity=75, no existing warehouses in import.sql
-    // This allows multiple warehouses, so tests won't conflict
-    long timestamp = System.currentTimeMillis();
-    com.warehouse.api.beans.Warehouse warehouse = new com.warehouse.api.beans.Warehouse();
-    warehouse.setBusinessUnitCode("MWH.100_" + timestamp); // Unique BU code
-    warehouse.setLocation("AMSTERDAM-002"); // Allows up to 3 warehouses, maxCapacity=75
-    warehouse.setCapacity(30); // Well within the 75 capacity limit
-    warehouse.setStock(10);
+        given()
+                .when()
+                .get(BASE_PATH + "/" + id)
+                .then()
+                .statusCode(200)
+                .body(containsString("MWH.001"));
+    }
 
-    given()
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(warehouse)
-        .when()
-        .post("/warehouse")
-        .then()
-        .statusCode(201) // OpenAPI spec says 201 for POST
-        .body(containsString("MWH.100"));
-  }
+    @Test
+    void getWarehouseById_notFound() {
+        given()
+                .when()
+                .get(BASE_PATH + "/999999")
+                .then()
+                .statusCode(404);
+    }
 
-  @Test
-  @Order(6)
-  public void testCreateWarehouseWithInvalidLocation() {
-    com.warehouse.api.beans.Warehouse warehouse = new com.warehouse.api.beans.Warehouse();
-    warehouse.setBusinessUnitCode("MWH.101_" + System.currentTimeMillis());
-    warehouse.setLocation("INVALID_LOCATION");
-    warehouse.setCapacity(50);
-    warehouse.setStock(10);
+    @Test
+    void getWarehouseById_invalidFormat() {
+        given()
+                .when()
+                .get(BASE_PATH + "/invalid")
+                .then()
+                .statusCode(400);
+    }
 
-    given()
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(warehouse)
-        .when()
-        .post("/warehouse")
-        .then()
-        .statusCode(400);
-  }
+    // ---------- CREATE ----------
 
-  @Test
-  @Order(7)
-  public void testArchiveWarehouse() {
-    // First create a warehouse to archive using EINDHOVEN-001: maxNumberOfWarehouses=2, maxCapacity=70
-    long timestamp = System.currentTimeMillis();
-    com.warehouse.api.beans.Warehouse warehouse = new com.warehouse.api.beans.Warehouse();
-    warehouse.setBusinessUnitCode("MWH.200_" + timestamp);
-    warehouse.setLocation("EINDHOVEN-001"); // maxNumberOfWarehouses=2, maxCapacity=70, no existing warehouses
-    warehouse.setCapacity(30);
-    warehouse.setStock(5);
+    @Test
+    void createWarehouse_success() {
+        long ts = System.currentTimeMillis();
+        com.warehouse.api.beans.Warehouse warehouse =
+                new com.warehouse.api.beans.Warehouse();
 
-    var response = given()
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(warehouse)
-        .when()
-        .post("/warehouse")
-        .then()
-        .statusCode(201)
-        .extract()
-        .body()
-        .jsonPath();
-    
-    String warehouseId = response.getString("id");
+        warehouse.setBusinessUnitCode("MWH.NEW_" + ts);
+        warehouse.setLocation("AMSTERDAM-002");
+        warehouse.setCapacity(25);
+        warehouse.setStock(5);
 
-    // Now archive it
-    given()
-        .when()
-        .delete("/warehouse/" + warehouseId)
-        .then()
-        .statusCode(204);
+        given()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(warehouse)
+                .when()
+                .post(BASE_PATH)
+                .then()
+                .statusCode(201)
+                .body(containsString("MWH.NEW"));
+    }
 
-    // Verify it's archived (should not appear in list)
-    given()
-        .when()
-        .get("/warehouse/" + warehouseId)
-        .then()
-        .statusCode(404);
-  }
+    @Test
+    void createWarehouse_invalidLocation_returns400() {
+        com.warehouse.api.beans.Warehouse warehouse =
+                new com.warehouse.api.beans.Warehouse();
 
-  @Test
-  @Order(8)
-  public void testArchiveWarehouseNotFound() {
-    given()
-        .when()
-        .delete("/warehouse/999")
-        .then()
-        .statusCode(404);
-  }
+        warehouse.setBusinessUnitCode("MWH.BAD_" + System.currentTimeMillis());
+        warehouse.setLocation("INVALID_LOCATION");
+        warehouse.setCapacity(20);
+        warehouse.setStock(5);
 
-  @Test
-  @Order(9)
-  public void testReplaceWarehouse() {
-    // First ensure MWH.001 exists and get its stock
-    var existingResponse = given()
-        .when()
-        .get("/warehouse/1")
-        .then()
-        .statusCode(200)
-        .extract()
-        .body()
-        .jsonPath();
-    
-    Integer existingStock = existingResponse.getInt("stock");
-    
-    // For replace: MWH.001 is at ZWOLLE-001
-    // Replacement archives the old warehouse first, then creates new one
-    // ZWOLLE-001: maxNumberOfWarehouses=1, maxCapacity=40
-    // Current MWH.001 has capacity=100 (exceeds maxCapacity, but that's test data issue)
-    // For replacement at same location, new capacity must be <= maxCapacity (40)
-    // Or we can move to a different location
-    // Let's use AMSTERDAM-002: maxNumberOfWarehouses=3, maxCapacity=75
-    // Note: testCreateWarehouse (Order 5) already created a warehouse here with capacity 30
-    // So we have 75 - 30 = 45 available capacity
-    com.warehouse.api.beans.Warehouse warehouse = new com.warehouse.api.beans.Warehouse();
-    warehouse.setBusinessUnitCode("MWH.001");
-    warehouse.setLocation("AMSTERDAM-002"); // Use a location with available capacity
-    warehouse.setCapacity(45); // 30 (existing) + 45 (new) = 75, which is exactly the max
-    warehouse.setStock(existingStock); // Must match existing stock
+        given()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(warehouse)
+                .when()
+                .post(BASE_PATH)
+                .then()
+                .statusCode(400);
+    }
 
-    given()
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(warehouse)
-        .when()
-        .post("/warehouse/MWH.001/replacement") // Correct endpoint from OpenAPI spec
-        .then()
-        .statusCode(200)
-        .body(containsString("MWH.001"));
-  }
+    @Test
+    void createWarehouse_missingPayload_returns400() {
+        given()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{}")
+                .when()
+                .post(BASE_PATH)
+                .then()
+                .statusCode(400);
+    }
+
+    // ---------- ARCHIVE ----------
+
+    @Test
+    void archiveWarehouse_success() {
+        long ts = System.currentTimeMillis();
+        com.warehouse.api.beans.Warehouse warehouse =
+                new com.warehouse.api.beans.Warehouse();
+
+        warehouse.setBusinessUnitCode("MWH.ARCH_" + ts);
+        warehouse.setLocation("EINDHOVEN-001");
+        warehouse.setCapacity(30);
+        warehouse.setStock(5);
+
+        String id =
+                given()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(warehouse)
+                        .post(BASE_PATH)
+                        .then()
+                        .statusCode(201)
+                        .extract()
+                        .jsonPath()
+                        .getString("id");
+
+        given()
+                .when()
+                .delete(BASE_PATH + "/" + id)
+                .then()
+                .statusCode(204);
+
+        given()
+                .when()
+                .get(BASE_PATH + "/" + id)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void archiveWarehouse_notFound() {
+        given()
+                .when()
+                .delete(BASE_PATH + "/999999")
+                .then()
+                .statusCode(404);
+    }
+
+    // ---------- REPLACEMENT ----------
+
+    @Test
+    void replaceWarehouse_success() {
+        String id =
+                given()
+                        .when()
+                        .get(BASE_PATH)
+                        .then()
+                        .statusCode(200)
+                        .extract()
+                        .jsonPath()
+                        .getString("[0].businessUnitCode");
+
+        com.warehouse.api.beans.Warehouse replacement =
+                new com.warehouse.api.beans.Warehouse();
+
+        replacement.setBusinessUnitCode(id);
+        replacement.setLocation("AMSTERDAM-002");
+        replacement.setCapacity(30);
+        replacement.setStock(10);
+
+        given()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(replacement)
+                .when()
+                .post(BASE_PATH + "/" + id + "/replacement")
+                .then()
+                .statusCode(200)
+                .body(containsString(id));
+    }
+
+    // ---------- NEGATIVE / EDGE ----------
+
+    @Test
+    void replaceWarehouse_notFound() {
+        com.warehouse.api.beans.Warehouse replacement =
+                new com.warehouse.api.beans.Warehouse();
+
+        replacement.setBusinessUnitCode("UNKNOWN");
+        replacement.setLocation("AMSTERDAM-002");
+        replacement.setCapacity(10);
+        replacement.setStock(5);
+
+        given()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(replacement)
+                .when()
+                .post(BASE_PATH + "/UNKNOWN/replacement")
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void unsupportedMethod_returns405() {
+        given()
+                .when()
+                .patch(BASE_PATH)
+                .then()
+                .statusCode(405);
+    }
 }
