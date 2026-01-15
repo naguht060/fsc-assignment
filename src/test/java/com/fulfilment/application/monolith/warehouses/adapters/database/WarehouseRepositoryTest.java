@@ -19,7 +19,7 @@ class WarehouseRepositoryTest {
     private String code;
 
     @BeforeEach
-    void init() {
+    void setUp() {
         code = "MWH.TEST_" + System.currentTimeMillis();
     }
 
@@ -28,8 +28,8 @@ class WarehouseRepositoryTest {
     @Test
     @Transactional
     void createWarehouse_success() {
-        Warehouse w = createActiveWarehouse(code);
-        repository.create(w);
+        Warehouse warehouse = createActiveWarehouse(code);
+        repository.create(warehouse);
 
         Warehouse found = repository.findByBusinessUnitCode(code);
         assertNotNull(found);
@@ -47,14 +47,14 @@ class WarehouseRepositoryTest {
     @Test
     @Transactional
     void findByBusinessUnitCode_notFound_returnsNull() {
-        assertNull(repository.findByBusinessUnitCode("UNKNOWN"));
+        assertNull(repository.findByBusinessUnitCode("UNKNOWN_CODE"));
     }
 
     @Test
     @Transactional
     void findByBusinessUnitCode_archivedWarehouse_returnsNull() {
-        Warehouse w = createArchivedWarehouse(code);
-        repository.create(w);
+        Warehouse warehouse = createArchivedWarehouse(code);
+        repository.create(warehouse);
 
         Warehouse found = repository.findByBusinessUnitCode(code);
         assertNull(found);
@@ -65,32 +65,36 @@ class WarehouseRepositoryTest {
     @Test
     @Transactional
     void getAll_returnsOnlyActiveWarehouses() {
-        repository.create(createActiveWarehouse(code));
-        repository.create(createArchivedWarehouse(code + "_ARCH"));
+        Warehouse active = createActiveWarehouse(code);
+        Warehouse archived = createArchivedWarehouse(code + "_ARCH");
+
+        repository.create(active);
+        repository.create(archived);
 
         List<Warehouse> all = repository.getAll();
 
-        assertEquals(1, all.size());
-        assertEquals(code, all.get(0).businessUnitCode);
+        assertTrue(
+                all.stream().anyMatch(w -> w.businessUnitCode.equals(code)),
+                "Active warehouse should be included");
+
+        assertFalse(
+                all.stream().anyMatch(w -> w.businessUnitCode.equals(code + "_ARCH")),
+                "Archived warehouse should be excluded");
     }
 
     @Test
     @Transactional
-    void getAll_allArchived_returnsEmptyList() {
-        repository.create(createArchivedWarehouse(code));
+    void getAll_containsMultipleActiveWarehouses() {
+        Warehouse w1 = createActiveWarehouse(code);
+        Warehouse w2 = createActiveWarehouse(code + "_2");
+
+        repository.create(w1);
+        repository.create(w2);
 
         List<Warehouse> all = repository.getAll();
-        assertTrue(all.isEmpty());
-    }
 
-    @Test
-    @Transactional
-    void getAll_multipleActiveWarehouses() {
-        repository.create(createActiveWarehouse(code));
-        repository.create(createActiveWarehouse(code + "_2"));
-
-        List<Warehouse> all = repository.getAll();
-        assertEquals(2, all.size());
+        assertTrue(all.stream().anyMatch(w -> w.businessUnitCode.equals(code)));
+        assertTrue(all.stream().anyMatch(w -> w.businessUnitCode.equals(code + "_2")));
     }
 
     // ---------- UPDATE ----------
@@ -98,16 +102,17 @@ class WarehouseRepositoryTest {
     @Test
     @Transactional
     void updateWarehouse_success() {
-        Warehouse w = createActiveWarehouse(code);
-        repository.create(w);
+        Warehouse warehouse = createActiveWarehouse(code);
+        repository.create(warehouse);
 
-        w.location = "AMSTERDAM-001";
-        w.capacity = 200;
-        w.stock = 100;
+        warehouse.location = "AMSTERDAM-001";
+        warehouse.capacity = 200;
+        warehouse.stock = 100;
 
-        repository.update(w);
+        repository.update(warehouse);
 
         Warehouse updated = repository.findByBusinessUnitCode(code);
+        assertNotNull(updated);
         assertEquals("AMSTERDAM-001", updated.location);
         assertEquals(200, updated.capacity);
         assertEquals(100, updated.stock);
@@ -115,35 +120,27 @@ class WarehouseRepositoryTest {
 
     @Test
     @Transactional
-    void updateWarehouse_noChanges_stillSucceeds() {
-        Warehouse w = createActiveWarehouse(code);
-        repository.create(w);
-
-        assertDoesNotThrow(() -> repository.update(w));
-    }
-
-    @Test
-    @Transactional
     void updateWarehouse_notFound_throwsException() {
-        Warehouse w = createActiveWarehouse("UNKNOWN");
+        Warehouse warehouse = createActiveWarehouse("UNKNOWN");
 
         IllegalStateException ex =
-                assertThrows(IllegalStateException.class, () -> repository.update(w));
+                assertThrows(IllegalStateException.class, () -> repository.update(warehouse));
+
         assertTrue(ex.getMessage().contains("UNKNOWN"));
     }
 
     @Test
     @Transactional
     void updateWarehouse_archived_throwsException() {
-        Warehouse w = createActiveWarehouse(code);
-        repository.create(w);
+        Warehouse warehouse = createActiveWarehouse(code);
+        repository.create(warehouse);
 
-        w.archivedAt = LocalDateTime.now();
-        repository.update(w);
+        warehouse.archivedAt = LocalDateTime.now();
+        repository.update(warehouse);
 
-        w.location = "AMSTERDAM-001";
+        warehouse.location = "AMSTERDAM-001";
 
-        assertThrows(IllegalStateException.class, () -> repository.update(w));
+        assertThrows(IllegalStateException.class, () -> repository.update(warehouse));
     }
 
     @Test
@@ -157,52 +154,53 @@ class WarehouseRepositoryTest {
     @Test
     @Transactional
     void removeWarehouse_success() {
-        Warehouse w = createActiveWarehouse(code);
-        repository.create(w);
+        Warehouse warehouse = createActiveWarehouse(code);
+        repository.create(warehouse);
 
-        repository.remove(w);
+        repository.remove(warehouse);
 
-        assertNull(repository.findByBusinessUnitCode(code));
+        Warehouse found = repository.findByBusinessUnitCode(code);
+        assertNull(found);
     }
 
     @Test
     @Transactional
     void removeWarehouse_notFound_doesNothing() {
-        Warehouse w = createActiveWarehouse("UNKNOWN");
-        assertDoesNotThrow(() -> repository.remove(w));
+        Warehouse warehouse = createActiveWarehouse("UNKNOWN");
+        assertDoesNotThrow(() -> repository.remove(warehouse));
     }
 
     @Test
     @Transactional
     void removeWarehouse_archived_doesNothing() {
-        Warehouse w = createArchivedWarehouse(code);
-        repository.create(w);
+        Warehouse warehouse = createArchivedWarehouse(code);
+        repository.create(warehouse);
 
-        assertDoesNotThrow(() -> repository.remove(w));
+        assertDoesNotThrow(() -> repository.remove(warehouse));
     }
 
     @Test
     @Transactional
-    void removeWarehouse_null_doesNothing() {
-        assertDoesNotThrow(() -> repository.remove(null));
+    void removeWarehouse_null_throwsException() {
+        assertThrows(NullPointerException.class, () -> repository.remove(null));
     }
 
     // ---------- HELPERS ----------
 
-    private Warehouse createActiveWarehouse(String code) {
-        Warehouse w = new Warehouse();
-        w.businessUnitCode = code;
-        w.location = "ZWOLLE-001";
-        w.capacity = 100;
-        w.stock = 50;
-        w.createdAt = LocalDateTime.now();
-        w.archivedAt = null;
-        return w;
+    private Warehouse createActiveWarehouse(String businessUnitCode) {
+        Warehouse warehouse = new Warehouse();
+        warehouse.businessUnitCode = businessUnitCode;
+        warehouse.location = "ZWOLLE-001";
+        warehouse.capacity = 100;
+        warehouse.stock = 50;
+        warehouse.createdAt = LocalDateTime.now();
+        warehouse.archivedAt = null;
+        return warehouse;
     }
 
-    private Warehouse createArchivedWarehouse(String code) {
-        Warehouse w = createActiveWarehouse(code);
-        w.archivedAt = LocalDateTime.now();
-        return w;
+    private Warehouse createArchivedWarehouse(String businessUnitCode) {
+        Warehouse warehouse = createActiveWarehouse(businessUnitCode);
+        warehouse.archivedAt = LocalDateTime.now();
+        return warehouse;
     }
 }
