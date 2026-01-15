@@ -1,17 +1,14 @@
 package com.fulfilment.application.monolith.products;
 
+import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import jakarta.persistence.Cacheable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
 import java.math.BigDecimal;
 
 @Entity
 @Cacheable
-public class Product {
-
-  @Id @GeneratedValue public Long id;
+public class Product extends PanacheEntity {
 
   @Column(length = 40, unique = true)
   public String name;
