@@ -43,6 +43,9 @@ jobs:
         env:
           QUARKUS_DATASOURCE_DEVSERVICES_ENABLED: false
           QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://localhost:5432/quarkus_test
+
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: ./mvnw clean test
 
       - name: Generate coverage report
