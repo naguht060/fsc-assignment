@@ -206,8 +206,8 @@ class FulfilmentAssignmentServiceTest {
     @Test
     @Transactional
     void warehouseWithZeroStock_assignmentHandled() {
-        warehouse.stock = 0;
-        warehouseRepository.persist(warehouse);
+        // warehouse is already persisted in @BeforeEach
+        warehouse.stock = 0;   // just modify the managed entity
 
         StoreWarehouseProduct assignment =
                 service.assign(store, product, warehouse);
