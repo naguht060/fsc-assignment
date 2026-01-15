@@ -250,7 +250,7 @@ public class WarehouseResourceImplComprehensiveTest {
         .contentType(MediaType.APPLICATION_JSON)
         .body(replaceRequest)
         .when()
-        .put("/warehouse/MWH.REPLACE.001")
+        .post("/warehouse/MWH.REPLACE.001/replacement")
         .then()
         .statusCode(200)
         .body(containsString("HAGUE-UPDATED"), containsString("250"));
@@ -289,7 +289,7 @@ public class WarehouseResourceImplComprehensiveTest {
         .contentType(MediaType.APPLICATION_JSON)
         .body(replaceRequest)
         .when()
-        .put("/warehouse/MWH.001")
+        .post("/warehouse/MWH.001/replacement")
         .then()
         .statusCode(400);
   }
@@ -308,7 +308,7 @@ public class WarehouseResourceImplComprehensiveTest {
         .contentType(MediaType.APPLICATION_JSON)
         .body(replaceRequest)
         .when()
-        .put("/warehouse/MWH.001")
+        .post("/warehouse/MWH.001/replacement")
         .then()
         .statusCode(400);
   }
@@ -328,7 +328,7 @@ public class WarehouseResourceImplComprehensiveTest {
         .contentType(MediaType.APPLICATION_JSON)
         .body(replaceRequest)
         .when()
-        .put("/warehouse/MWH.DOES.NOT.EXIST")
+        .post("/warehouse/MWH.DOES.NOT.EXIST/replacement")
         .then()
         .statusCode(400)
         .body(containsString("Invalid"));

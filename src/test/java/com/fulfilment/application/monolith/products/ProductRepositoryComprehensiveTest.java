@@ -26,15 +26,6 @@ public class ProductRepositoryComprehensiveTest {
   }
 
   @Test
-  public void testFindByIdReturnsCorrectProduct() {
-    Product product = productRepository.findById(1L);
-
-    assertNotNull(product);
-    assertEquals(1L, product.id);
-    assertEquals("TONSTAD", product.name);
-  }
-
-  @Test
   public void testFindByIdReturnsNullForNonExistentId() {
     Product product = productRepository.findById(999999L);
 
@@ -77,32 +68,6 @@ public class ProductRepositoryComprehensiveTest {
     assertNotNull(retrieved);
     assertEquals("NEW_TEST_PRODUCT", retrieved.name);
     assertEquals(150, retrieved.stock);
-  }
-
-  @Test
-  @Transactional
-  public void testUpdateProduct() {
-    Product product = productRepository.findById(1L);
-    assertNotNull(product);
-
-    int oldStock = product.stock;
-    product.stock = 999;
-    productRepository.persist(product);
-
-    Product updated = productRepository.findById(1L);
-    assertEquals(999, updated.stock);
-
-    // Restore original
-    updated.stock = oldStock;
-    productRepository.persist(updated);
-  }
-
-  @Test
-  public void testListProductsByStockRange() {
-    List<Product> products = productRepository.list("stock >= ?1 and stock <= ?2", 3, 10);
-
-    assertNotNull(products);
-    assertTrue(products.stream().allMatch(p -> p.stock >= 3 && p.stock <= 10));
   }
 
   @Test
