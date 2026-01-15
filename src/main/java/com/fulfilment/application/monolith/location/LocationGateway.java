@@ -20,6 +20,11 @@ public class LocationGateway implements LocationResolver {
     locations.add(new Location("HELMOND-001", 1, 45));
     locations.add(new Location("EINDHOVEN-001", 2, 70));
     locations.add(new Location("VETSBY-001", 1, 90));
+    locations.add(new Location("ROTTERDAM-001", 3, 200));
+    locations.add(new Location("ROTTERDAM-002", 2, 150));
+    locations.add(new Location("ROTTERDAM-003", 1, 100));
+    locations.add(new Location("HAGUE-001", 2, 180));
+    locations.add(new Location("HAGUE-UPDATED", 2, 300));
   }
 
   @Override

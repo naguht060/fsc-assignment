@@ -270,7 +270,7 @@ public class WarehouseResourceImplComprehensiveTest {
         .contentType(MediaType.APPLICATION_JSON)
         .body(replaceRequest)
         .when()
-        .put("/warehouse/MWH.001")
+        .post("/warehouse/MWH.001/replacement")
         .then()
         .statusCode(400);
   }
@@ -331,7 +331,7 @@ public class WarehouseResourceImplComprehensiveTest {
         .post("/warehouse/MWH.DOES.NOT.EXIST/replacement")
         .then()
         .statusCode(400)
-        .body(containsString("Invalid"));
+        .body(containsString("Warehouse not found"));
   }
 
   @Test
@@ -357,7 +357,7 @@ public class WarehouseResourceImplComprehensiveTest {
         .contentType(MediaType.APPLICATION_JSON)
         .body(replaceRequest)
         .when()
-        .put("/warehouse/MWH.001")
+        .post("/warehouse/MWH.001/replacement")
         .then()
         .statusCode(400);
   }
