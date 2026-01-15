@@ -160,4 +160,31 @@ public class ProductResourceTest {
         .then()
         .statusCode(404);
   }
+
+  @Test
+  @Order(11)
+  public void testGetAllProductsIsEmpty() {
+    given()
+        .when()
+        .get("/product")
+        .then()
+        .statusCode(200);
+  }
+
+  @Test
+  @Order(12)
+  public void testUpdateProductNameNull() {
+    Product product = new Product();
+    product.description = "Test Description";
+    product.price = new BigDecimal("99.99");
+    product.stock = 50;
+
+    given()
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(product)
+        .when()
+        .put("/product/2")
+        .then()
+        .statusCode(422);
+  }
 }

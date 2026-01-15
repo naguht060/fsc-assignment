@@ -186,4 +186,76 @@ public class StoreResourceTest {
         .then()
         .statusCode(404);
   }
+
+  @Test
+  @Order(9)
+  public void testCreateStoreWithNameNull() {
+    Store store = new Store();
+    store.quantityProductsInStock = 100;
+
+    given()
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(store)
+        .when()
+        .post("/store")
+        .then()
+        .statusCode(201);  // Created - no validation for null name in API
+  }
+
+  @Test
+  @Order(10)
+  public void testUpdateStoreNotFound() {
+    Store store = new Store();
+    store.name = "NOT_FOUND";
+    store.quantityProductsInStock = 50;
+
+    given()
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(store)
+        .when()
+        .put("/store/999999")
+        .then()
+        .statusCode(404);
+  }
+
+  @Test
+  @Order(11)
+  public void testDeleteStoreNotFound() {
+    given()
+        .when()
+        .delete("/store/999999")
+        .then()
+        .statusCode(404);
+  }
+
+  @Test
+  @Order(12)
+  public void testPatchStoreNotFound() {
+    Store store = new Store();
+    store.name = "PATCH_NOT_FOUND";
+    store.quantityProductsInStock = 100;
+
+    given()
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(store)
+        .when()
+        .patch("/store/999999")
+        .then()
+        .statusCode(404);
+  }
+
+  @Test
+  @Order(13)
+  public void testPatchStoreWithoutNameShouldFail() {
+    Store store = new Store();
+    store.quantityProductsInStock = 50;
+
+    given()
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(store)
+        .when()
+        .patch("/store/1")
+        .then()
+        .statusCode(422);
+  }
 }
