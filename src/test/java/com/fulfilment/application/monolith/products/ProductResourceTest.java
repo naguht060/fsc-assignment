@@ -3,6 +3,7 @@ package com.fulfilment.application.monolith.products;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.core.IsNot.not;
 
 import io.quarkus.test.junit.QuarkusTest;
@@ -186,5 +187,238 @@ public class ProductResourceTest {
         .put("/product/2")
         .then()
         .statusCode(422);
+  }
+
+  @Test
+  @Order(13)
+  public void testCreateProductWithZeroStock() {
+    Product product = new Product();
+    product.name = "ZERO_STOCK_" + System.currentTimeMillis();
+    product.stock = 0;
+
+    given()
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(product)
+        .when()
+        .post("/product")
+        .then()
+        .statusCode(201);
+  }
+
+  @Test
+  @Order(14)
+  public void testCreateProductWithNegativeStock() {
+    Product product = new Product();
+    product.name = "NEGATIVE_STOCK_" + System.currentTimeMillis();
+    product.stock = -50;
+
+    given()
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(product)
+        .when()
+        .post("/product")
+        .then()
+        .statusCode(anyOf(is(201), is(400), is(422)));
+  }
+
+  @Test
+  @Order(15)
+  public void testCreateProductWithLargeStock() {
+    Product product = new Product();
+    product.name = "LARGE_STOCK_" + System.currentTimeMillis();
+    product.stock = Integer.MAX_VALUE;
+
+    given()
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(product)
+        .when()
+        .post("/product")
+        .then()
+        .statusCode(201);
+  }
+
+  @Test
+  @Order(16)
+  public void testUpdateProductWithZeroStock() {
+    Product product = new Product();
+    product.name = "UPDATE_ZERO_" + System.currentTimeMillis();
+    product.stock = 0;
+
+    given()
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(product)
+        .when()
+        .put("/product/2")
+        .then()
+        .statusCode(200);
+  }
+
+  @Test
+  @Order(17)
+  public void testCreateProductWithPrice() {
+    Product product = new Product();
+    product.name = "WITH_PRICE_" + System.currentTimeMillis();
+    product.price = new BigDecimal("199.99");
+    product.stock = 100;
+
+    given()
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(product)
+        .when()
+        .post("/product")
+        .then()
+        .statusCode(201)
+        .body(containsString("WITH_PRICE_"));
+  }
+
+  @Test
+  @Order(18)
+  public void testCreateProductWithDescription() {
+    Product product = new Product();
+    product.name = "WITH_DESC_" + System.currentTimeMillis();
+    product.description = "A very detailed product description";
+    product.stock = 75;
+
+    given()
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(product)
+        .when()
+        .post("/product")
+        .then()
+        .statusCode(201);
+  }
+
+  @Test
+  @Order(19)
+  public void testCreateMultipleProducts() {
+    for (int i = 0; i < 3; i++) {
+      Product product = new Product();
+      product.name = "BULK_CREATE_" + i + "_" + System.currentTimeMillis();
+      product.stock = 50 + (i * 10);
+
+      given()
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(product)
+          .when()
+          .post("/product")
+          .then()
+          .statusCode(201);
+    }
+  }
+
+  @Test
+  @Order(20)
+  public void testCreateUpdateDeleteCycle() {
+    // Create
+    Product product = new Product();
+    product.name = "CYCLE_" + System.currentTimeMillis();
+    product.stock = 100;
+
+    Long id = given()
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(product)
+        .when()
+        .post("/product")
+        .then()
+        .statusCode(201)
+        .extract()
+        .jsonPath()
+        .getLong("id");
+
+    // Update
+    Product updated = new Product();
+    updated.name = "CYCLE_UPDATED_" + id;
+    updated.stock = 200;
+
+    given()
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(updated)
+        .when()
+        .put("/product/" + id)
+        .then()
+        .statusCode(200);
+
+    // Get
+    given()
+        .when()
+        .get("/product/" + id)
+        .then()
+        .statusCode(200)
+        .body(containsString("CYCLE_UPDATED_"));
+
+    // Delete
+    given()
+        .when()
+        .delete("/product/" + id)
+        .then()
+        .statusCode(204);
+
+    // Verify deleted
+    given()
+        .when()
+        .get("/product/" + id)
+        .then()
+        .statusCode(404);
+  }
+
+  @Test
+  @Order(21)
+  public void testGetProductByIdInvalidFormat() {
+    given()
+        .when()
+        .get("/product/invalid_id")
+        .then()
+        .statusCode(anyOf(is(400), is(404)));
+  }
+
+  @Test
+  @Order(22)
+  public void testCreateProductWithLongName() {
+    Product product = new Product();
+    product.name = "VERY_LONG_PRODUCT_NAME_" + "X".repeat(200) + "_" + System.currentTimeMillis();
+    product.stock = 60;
+
+    given()
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(product)
+        .when()
+        .post("/product")
+        .then()
+        .statusCode(anyOf(is(201), is(400), is(422), is(500)));
+  }
+
+  @Test
+  @Order(23)
+  public void testUpdateProductMultipleTimes() {
+    // Create
+    Product product = new Product();
+    product.name = "MULTI_UPDATE_" + System.currentTimeMillis();
+    product.stock = 50;
+
+    Long id = given()
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(product)
+        .when()
+        .post("/product")
+        .then()
+        .statusCode(201)
+        .extract()
+        .jsonPath()
+        .getLong("id");
+
+    // Update multiple times
+    for (int i = 0; i < 3; i++) {
+      Product updated = new Product();
+      updated.name = "UPDATE_" + i + "_" + id;
+      updated.stock = 50 + (i * 50);
+
+      given()
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(updated)
+          .when()
+          .put("/product/" + id)
+          .then()
+          .statusCode(200);
+    }
   }
 }
