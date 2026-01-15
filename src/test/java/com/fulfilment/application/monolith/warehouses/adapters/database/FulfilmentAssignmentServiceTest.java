@@ -1,232 +1,245 @@
 package com.fulfilment.application.monolith.warehouses.adapters.database;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.fulfilment.application.monolith.products.Product;
 import com.fulfilment.application.monolith.products.ProductRepository;
 import com.fulfilment.application.monolith.stores.Store;
-import com.fulfilment.application.monolith.warehouses.adapters.database.WarehouseRepository;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 
 @QuarkusTest
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class FulfilmentAssignmentServiceTest {
+class FulfilmentAssignmentServiceTest {
 
-  @Inject FulfilmentAssignmentService service;
+    @Inject FulfilmentAssignmentService service;
+    @Inject ProductRepository productRepository;
+    @Inject WarehouseRepository warehouseRepository;
 
-  @Inject ProductRepository productRepository;
+    private Store store;
+    private Product product;
+    private DbWarehouse warehouse;
 
-  @Inject WarehouseRepository warehouseRepository;
+    @BeforeEach
+    @Transactional
+    void setUp() {
+        long ts = System.currentTimeMillis();
 
-  private Store store;
-  private Product product;
-  private DbWarehouse warehouse;
+        store = new Store();
+        store.name = "TEST_STORE_" + ts;
+        store.quantityProductsInStock = 10;
+        store.persist();
 
-  @BeforeEach
-  @Transactional
-  void setUp() {
-    // Create test data with unique names to avoid conflicts
-    long timestamp = System.currentTimeMillis();
-    store = new Store();
-    store.name = "TEST_STORE_" + timestamp;
-    store.quantityProductsInStock = 10;
-    store.persist();
+        product = new Product();
+        product.name = "TEST_PRODUCT_" + ts;
+        product.stock = 20;
+        productRepository.persist(product);
 
-    product = new Product();
-    product.name = "TEST_PRODUCT_" + timestamp;
-    product.stock = 20;
-    productRepository.persist(product);
+        warehouse = new DbWarehouse();
+        warehouse.businessUnitCode = "MWH.TEST_" + ts;
+        warehouse.location = "AMSTERDAM-001";
+        warehouse.capacity = 100;
+        warehouse.stock = 50;
+        warehouseRepository.persist(warehouse);
+    }
 
-    warehouse = new DbWarehouse();
-    warehouse.businessUnitCode = "MWH.TEST_" + timestamp;
-    warehouse.location = "AMSTERDAM-001";
-    warehouse.capacity = 100;
-    warehouse.stock = 50;
-    warehouseRepository.persist(warehouse);
-  }
+    // ---------- BASIC ASSIGNMENT ----------
 
-  @Test
-  @Order(1)
-  @Transactional
-  public void testAssignSuccessfully() {
-    StoreWarehouseProduct assignment = service.assign(store, product, warehouse);
-    assertNotNull(assignment);
-    assertNotNull(assignment.id);
-    assertEquals(store.id, assignment.store.id);
-    assertEquals(product.id, assignment.product.id);
-    assertEquals(warehouse.id, assignment.warehouse.id);
-  }
+    @Test
+    @Transactional
+    void assign_success() {
+        StoreWarehouseProduct assignment = service.assign(store, product, warehouse);
 
-  @Test
-  @Order(2)
-  @Transactional
-  public void testAssignDuplicateReturnsExisting() {
-    StoreWarehouseProduct first = service.assign(store, product, warehouse);
-    StoreWarehouseProduct second = service.assign(store, product, warehouse);
-    
-    assertNotNull(first);
-    assertNotNull(second);
-    assertEquals(first.id, second.id);
-  }
+        assertNotNull(assignment);
+        assertNotNull(assignment.id);
+        assertEquals(store.id, assignment.store.id);
+        assertEquals(product.id, assignment.product.id);
+        assertEquals(warehouse.id, assignment.warehouse.id);
+    }
 
-  @Test
-  @Order(3)
-  @Transactional
-  public void testAssignWithNullStoreShouldFail() {
-    assertThrows(
-        IllegalArgumentException.class, () -> service.assign(null, product, warehouse));
-  }
+    @Test
+    @Transactional
+    void assign_duplicate_returnsSameAssignment() {
+        StoreWarehouseProduct first = service.assign(store, product, warehouse);
+        StoreWarehouseProduct second = service.assign(store, product, warehouse);
 
-  @Test
-  @Order(4)
-  @Transactional
-  public void testAssignWithNullProductShouldFail() {
-    assertThrows(
-        IllegalArgumentException.class, () -> service.assign(store, null, warehouse));
-  }
+        assertEquals(first.id, second.id);
+    }
 
-  @Test
-  @Order(5)
-  @Transactional
-  public void testAssignWithNullWarehouseShouldFail() {
-    assertThrows(
-        IllegalArgumentException.class, () -> service.assign(store, product, null));
-  }
+    // ---------- NULL GUARDS ----------
 
-  @Test
-  @Order(6)
-  @Transactional
-  public void testAssignMaxTwoWarehousesPerProductPerStore() {
-    long timestamp = System.currentTimeMillis();
-    // Create second warehouse
-    DbWarehouse warehouse2 = new DbWarehouse();
-    warehouse2.businessUnitCode = "MWH.TEST2_" + timestamp;
-    warehouse2.location = "AMSTERDAM-001";
-    warehouse2.capacity = 100;
-    warehouse2.stock = 50;
-    warehouseRepository.persist(warehouse2);
+    @Test
+    @Transactional
+    void assign_nullStore_throwsException() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service.assign(null, product, warehouse));
+    }
 
-    // Create third warehouse
-    DbWarehouse warehouse3 = new DbWarehouse();
-    warehouse3.businessUnitCode = "MWH.TEST3_" + timestamp;
-    warehouse3.location = "AMSTERDAM-001";
-    warehouse3.capacity = 100;
-    warehouse3.stock = 50;
-    warehouseRepository.persist(warehouse3);
+    @Test
+    @Transactional
+    void assign_nullProduct_throwsException() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service.assign(store, null, warehouse));
+    }
 
-    // Assign first two warehouses - should succeed
-    service.assign(store, product, warehouse);
-    service.assign(store, product, warehouse2);
+    @Test
+    @Transactional
+    void assign_nullWarehouse_throwsException() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service.assign(store, product, null));
+    }
 
-    // Try to assign third warehouse - should fail
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> service.assign(store, product, warehouse3),
-        "A product can be fulfilled by at most 2 warehouses per store");
-  }
+    // ---------- PRODUCT / STORE RULES ----------
 
-  @Test
-  @Order(7)
-  @Transactional
-  public void testAssignMaxThreeWarehousesPerStore() {
-    long timestamp = System.currentTimeMillis();
-    // Create additional warehouses
-    DbWarehouse warehouse2 = new DbWarehouse();
-    warehouse2.businessUnitCode = "MWH.TEST2_" + timestamp;
-    warehouse2.location = "AMSTERDAM-001";
-    warehouse2.capacity = 100;
-    warehouse2.stock = 50;
-    warehouseRepository.persist(warehouse2);
+    @Test
+    @Transactional
+    void maxTwoWarehousesPerProductPerStore_enforced() {
+        DbWarehouse w2 = createWarehouse("MWH.TEST2");
+        DbWarehouse w3 = createWarehouse("MWH.TEST3");
 
-    DbWarehouse warehouse3 = new DbWarehouse();
-    warehouse3.businessUnitCode = "MWH.TEST3_" + timestamp;
-    warehouse3.location = "AMSTERDAM-001";
-    warehouse3.capacity = 100;
-    warehouse3.stock = 50;
-    warehouseRepository.persist(warehouse3);
+        service.assign(store, product, warehouse);
+        service.assign(store, product, w2);
 
-    DbWarehouse warehouse4 = new DbWarehouse();
-    warehouse4.businessUnitCode = "MWH.TEST4_" + timestamp;
-    warehouse4.location = "AMSTERDAM-001";
-    warehouse4.capacity = 100;
-    warehouse4.stock = 50;
-    warehouseRepository.persist(warehouse4);
+        assertThrows(IllegalArgumentException.class,
+                () -> service.assign(store, product, w3));
+    }
 
-    // Create different products
-    Product product2 = new Product();
-    product2.name = "TEST_PRODUCT2_" + timestamp;
-    product2.stock = 20;
-    productRepository.persist(product2);
+    @Test
+    @Transactional
+    void maxThreeWarehousesPerStore_enforced() {
+        DbWarehouse w2 = createWarehouse("MWH.TEST2");
+        DbWarehouse w3 = createWarehouse("MWH.TEST3");
+        DbWarehouse w4 = createWarehouse("MWH.TEST4");
 
-    // Assign first three warehouses with different products - should succeed
-    service.assign(store, product, warehouse);
-    service.assign(store, product2, warehouse2);
-    service.assign(store, product, warehouse3);
+        Product product2 = createProduct("TEST_PRODUCT_2");
 
-    // Try to assign fourth warehouse - should fail
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> service.assign(store, product2, warehouse4),
-        "A store can be fulfilled by at most 3 different warehouses");
-  }
+        service.assign(store, product, warehouse);
+        service.assign(store, product2, w2);
+        service.assign(store, product, w3);
 
-  @Test
-  @Order(8)
-  @Transactional
-  public void testAssignMaxFiveProductTypesPerWarehouse() {
-    long timestamp = System.currentTimeMillis();
-    // Create additional products
-    Product product2 = new Product();
-    product2.name = "TEST_PRODUCT2_" + timestamp;
-    product2.stock = 20;
-    productRepository.persist(product2);
+        assertThrows(IllegalArgumentException.class,
+                () -> service.assign(store, product2, w4));
+    }
 
-    Product product3 = new Product();
-    product3.name = "TEST_PRODUCT3_" + timestamp;
-    product3.stock = 20;
-    productRepository.persist(product3);
+    @Test
+    @Transactional
+    void maxFiveProductTypesPerWarehouse_enforced() {
+        Product p2 = createProduct("P2");
+        Product p3 = createProduct("P3");
+        Product p4 = createProduct("P4");
+        Product p5 = createProduct("P5");
+        Product p6 = createProduct("P6");
 
-    Product product4 = new Product();
-    product4.name = "TEST_PRODUCT4_" + timestamp;
-    product4.stock = 20;
-    productRepository.persist(product4);
+        Store store2 = createStore("STORE2");
 
-    Product product5 = new Product();
-    product5.name = "TEST_PRODUCT5_" + timestamp;
-    product5.stock = 20;
-    productRepository.persist(product5);
+        service.assign(store, product, warehouse);
+        service.assign(store, p2, warehouse);
+        service.assign(store, p3, warehouse);
+        service.assign(store2, p4, warehouse);
+        service.assign(store2, p5, warehouse);
 
-    Product product6 = new Product();
-    product6.name = "TEST_PRODUCT6_" + timestamp;
-    product6.stock = 20;
-    productRepository.persist(product6);
+        assertThrows(IllegalArgumentException.class,
+                () -> service.assign(store, p6, warehouse));
+    }
 
-    // Create additional store
-    Store store2 = new Store();
-    store2.name = "TEST_STORE2_" + timestamp;
-    store2.quantityProductsInStock = 10;
-    store2.persist();
+    // ---------- EXTRA COVERAGE (IMPORTANT) ----------
 
-    // Assign first five products - should succeed
-    service.assign(store, product, warehouse);
-    service.assign(store, product2, warehouse);
-    service.assign(store, product3, warehouse);
-    service.assign(store2, product4, warehouse);
-    service.assign(store2, product5, warehouse);
+    @Test
+    @Transactional
+    void sameProductWarehouseDifferentStore_allowed() {
+        Store store2 = createStore("STORE2");
 
-    // Try to assign sixth product - should fail
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> service.assign(store, product6, warehouse),
-        "A warehouse can store at most 5 different product types");
-  }
+        StoreWarehouseProduct a1 = service.assign(store, product, warehouse);
+        StoreWarehouseProduct a2 = service.assign(store2, product, warehouse);
+
+        assertNotEquals(a1.id, a2.id);
+    }
+
+    @Test
+    @Transactional
+    void sameStoreWarehouseDifferentProducts_allowed() {
+        Product product2 = createProduct("PRODUCT_X");
+
+        StoreWarehouseProduct a1 = service.assign(store, product, warehouse);
+        StoreWarehouseProduct a2 = service.assign(store, product2, warehouse);
+
+        assertNotEquals(a1.id, a2.id);
+    }
+
+    @Test
+    @Transactional
+    void duplicateAssignment_doesNotCreateMultipleRecords() {
+        service.assign(store, product, warehouse);
+        service.assign(store, product, warehouse);
+        service.assign(store, product, warehouse);
+
+        long count = StoreWarehouseProduct
+                .find("store.id = ?1 and product.id = ?2 and warehouse.id = ?3",
+                        store.id, product.id, warehouse.id)
+                .count();
+
+        assertEquals(1, count);
+    }
+
+    @Test
+    @Transactional
+    void assignmentAfterFailure_stillWorks() {
+        DbWarehouse w2 = createWarehouse("MWH.TEST2");
+        DbWarehouse w3 = createWarehouse("MWH.TEST3");
+
+        service.assign(store, product, warehouse);
+        service.assign(store, product, w2);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.assign(store, product, w3));
+
+        Product newProduct = createProduct("NEW_PRODUCT");
+
+        StoreWarehouseProduct valid =
+                service.assign(store, newProduct, warehouse);
+
+        assertNotNull(valid);
+    }
+
+    @Test
+    @Transactional
+    void warehouseWithZeroStock_assignmentHandled() {
+        warehouse.stock = 0;
+        warehouseRepository.persist(warehouse);
+
+        StoreWarehouseProduct assignment =
+                service.assign(store, product, warehouse);
+
+        assertNotNull(assignment);
+    }
+
+    // ---------- HELPERS ----------
+
+    private DbWarehouse createWarehouse(String prefix) {
+        DbWarehouse w = new DbWarehouse();
+        w.businessUnitCode = prefix + "_" + System.currentTimeMillis();
+        w.location = "AMSTERDAM-001";
+        w.capacity = 100;
+        w.stock = 50;
+        warehouseRepository.persist(w);
+        return w;
+    }
+
+    private Product createProduct(String name) {
+        Product p = new Product();
+        p.name = name + "_" + System.currentTimeMillis();
+        p.stock = 20;
+        productRepository.persist(p);
+        return p;
+    }
+
+    private Store createStore(String name) {
+        Store s = new Store();
+        s.name = name + "_" + System.currentTimeMillis();
+        s.quantityProductsInStock = 10;
+        s.persist();
+        return s;
+    }
 }
