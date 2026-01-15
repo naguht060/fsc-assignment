@@ -224,7 +224,7 @@ public class WarehouseResourceImplComprehensiveTest {
         {
           "businessUnitCode": "MWH.REPLACE.001",
           "location": "HAGUE-001",
-          "capacity": 200,
+          "capacity": 150,
           "stock": 50
         }
         """;
@@ -241,7 +241,7 @@ public class WarehouseResourceImplComprehensiveTest {
     var replaceRequest = """
         {
           "location": "HAGUE-UPDATED",
-          "capacity": 250,
+          "capacity": 200,
           "stock": 50
         }
         """;
@@ -253,7 +253,7 @@ public class WarehouseResourceImplComprehensiveTest {
         .post("/warehouse/MWH.REPLACE.001/replacement")
         .then()
         .statusCode(200)
-        .body(containsString("HAGUE-UPDATED"), containsString("250"));
+        .body(containsString("HAGUE-UPDATED"), containsString("200"));
   }
 
   @Test
