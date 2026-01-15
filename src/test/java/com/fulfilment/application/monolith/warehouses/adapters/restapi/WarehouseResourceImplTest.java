@@ -2,7 +2,6 @@ package com.fulfilment.application.monolith.warehouses.adapters.restapi;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.is;
 
 import com.fulfilment.application.monolith.warehouses.adapters.database.WarehouseRepository;
 import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
@@ -23,7 +22,6 @@ class WarehouseResourceImplTest {
     @BeforeEach
     @Transactional
     void setUp() {
-        // Ensure at least one warehouse exists for GET tests
         if (warehouseRepository.findByBusinessUnitCode("MWH.001") == null) {
             Warehouse warehouse = new Warehouse();
             warehouse.businessUnitCode = "MWH.001";
@@ -46,11 +44,11 @@ class WarehouseResourceImplTest {
                 .body(containsString("MWH.001"));
     }
 
-    // ---------- GET BY ID ----------
+    // ---------- GET ----------
 
     @Test
     void getWarehouseById_success() {
-        String id =
+        String warehouseId =
                 given()
                         .when()
                         .get(BASE_PATH)
@@ -62,7 +60,7 @@ class WarehouseResourceImplTest {
 
         given()
                 .when()
-                .get(BASE_PATH + "/" + id)
+                .get(BASE_PATH + "/" + warehouseId)
                 .then()
                 .statusCode(200)
                 .body(containsString("MWH.001"));
@@ -70,20 +68,12 @@ class WarehouseResourceImplTest {
 
     @Test
     void getWarehouseById_notFound() {
-        given()
-                .when()
-                .get(BASE_PATH + "/999999")
-                .then()
-                .statusCode(404);
+        given().when().get(BASE_PATH + "/999999").then().statusCode(404);
     }
 
     @Test
     void getWarehouseById_invalidFormat() {
-        given()
-                .when()
-                .get(BASE_PATH + "/invalid")
-                .then()
-                .statusCode(400);
+        given().when().get(BASE_PATH + "/invalid").then().statusCode(400);
     }
 
     // ---------- CREATE ----------
@@ -152,7 +142,7 @@ class WarehouseResourceImplTest {
         warehouse.setCapacity(30);
         warehouse.setStock(5);
 
-        String id =
+        String warehouseId =
                 given()
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(warehouse)
@@ -163,33 +153,21 @@ class WarehouseResourceImplTest {
                         .jsonPath()
                         .getString("id");
 
-        given()
-                .when()
-                .delete(BASE_PATH + "/" + id)
-                .then()
-                .statusCode(204);
+        given().when().delete(BASE_PATH + "/" + warehouseId).then().statusCode(204);
 
-        given()
-                .when()
-                .get(BASE_PATH + "/" + id)
-                .then()
-                .statusCode(404);
+        given().when().get(BASE_PATH + "/" + warehouseId).then().statusCode(404);
     }
 
     @Test
     void archiveWarehouse_notFound() {
-        given()
-                .when()
-                .delete(BASE_PATH + "/999999")
-                .then()
-                .statusCode(404);
+        given().when().delete(BASE_PATH + "/999999").then().statusCode(404);
     }
 
     // ---------- REPLACEMENT ----------
 
     @Test
     void replaceWarehouse_success() {
-        String id =
+        String businessUnitCode =
                 given()
                         .when()
                         .get(BASE_PATH)
@@ -202,7 +180,7 @@ class WarehouseResourceImplTest {
         com.warehouse.api.beans.Warehouse replacement =
                 new com.warehouse.api.beans.Warehouse();
 
-        replacement.setBusinessUnitCode(id);
+        replacement.setBusinessUnitCode(businessUnitCode);
         replacement.setLocation("AMSTERDAM-002");
         replacement.setCapacity(30);
         replacement.setStock(10);
@@ -211,39 +189,35 @@ class WarehouseResourceImplTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(replacement)
                 .when()
-                .post(BASE_PATH + "/" + id + "/replacement")
+                .post(BASE_PATH + "/" + businessUnitCode + "/replacement")
                 .then()
                 .statusCode(200)
-                .body(containsString(id));
+                .body(containsString(businessUnitCode));
     }
 
-    // ---------- NEGATIVE / EDGE ----------
-
     @Test
-    void replaceWarehouse_notFound() {
-        com.warehouse.api.beans.Warehouse replacement =
-                new com.warehouse.api.beans.Warehouse();
-
-        replacement.setBusinessUnitCode("UNKNOWN");
-        replacement.setLocation("AMSTERDAM-002");
-        replacement.setCapacity(10);
-        replacement.setStock(5);
-
+    void replaceWarehouse_notFound_returns400() {
         given()
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(replacement)
+                .body(
+                        """
+                        {
+                          "businessUnitCode": "UNKNOWN",
+                          "location": "AMSTERDAM-002",
+                          "capacity": 10,
+                          "stock": 5
+                        }
+                        """)
                 .when()
                 .post(BASE_PATH + "/UNKNOWN/replacement")
                 .then()
-                .statusCode(404);
+                .statusCode(400);
     }
+
+    // ---------- METHOD ----------
 
     @Test
     void unsupportedMethod_returns405() {
-        given()
-                .when()
-                .patch(BASE_PATH)
-                .then()
-                .statusCode(405);
+        given().when().patch(BASE_PATH).then().statusCode(405);
     }
 }

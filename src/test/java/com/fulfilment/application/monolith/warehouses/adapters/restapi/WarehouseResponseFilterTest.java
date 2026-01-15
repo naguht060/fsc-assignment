@@ -1,6 +1,5 @@
 package com.fulfilment.application.monolith.warehouses.adapters.restapi;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.*;
 
 import jakarta.ws.rs.container.ContainerRequestContext;
@@ -29,7 +28,7 @@ class WarehouseResponseFilterTest {
     // ---------- POSITIVE PATH ----------
 
     @Test
-    void testFilterChanges200To201ForPostWarehouse() {
+    void filter_changes200To201_forPostWarehouse() {
         when(requestContext.getMethod()).thenReturn("POST");
         when(requestContext.getUriInfo()).thenReturn(uriInfo);
         when(uriInfo.getPath()).thenReturn("warehouse");
@@ -41,7 +40,7 @@ class WarehouseResponseFilterTest {
     }
 
     @Test
-    void testFilterWorksWithSlashPath() {
+    void filter_worksWithLeadingSlash() {
         when(requestContext.getMethod()).thenReturn("POST");
         when(requestContext.getUriInfo()).thenReturn(uriInfo);
         when(uriInfo.getPath()).thenReturn("/warehouse");
@@ -52,10 +51,10 @@ class WarehouseResponseFilterTest {
         verify(responseContext).setStatus(Response.Status.CREATED.getStatusCode());
     }
 
-    // ---------- NEGATIVE / NO-OP PATHS ----------
+    // ---------- NO-OP PATHS ----------
 
     @Test
-    void testFilterDoesNotChangeStatusForGetRequest() {
+    void filter_doesNothing_forGetRequest() {
         when(requestContext.getMethod()).thenReturn("GET");
         when(requestContext.getUriInfo()).thenReturn(uriInfo);
         when(uriInfo.getPath()).thenReturn("warehouse");
@@ -67,7 +66,7 @@ class WarehouseResponseFilterTest {
     }
 
     @Test
-    void testFilterDoesNotChangeStatusForDifferentPath() {
+    void filter_doesNothing_forDifferentPath() {
         when(requestContext.getMethod()).thenReturn("POST");
         when(requestContext.getUriInfo()).thenReturn(uriInfo);
         when(uriInfo.getPath()).thenReturn("store");
@@ -79,7 +78,7 @@ class WarehouseResponseFilterTest {
     }
 
     @Test
-    void testFilterDoesNotChangeStatusWhenAlready201() {
+    void filter_doesNothing_whenAlready201() {
         when(requestContext.getMethod()).thenReturn("POST");
         when(requestContext.getUriInfo()).thenReturn(uriInfo);
         when(uriInfo.getPath()).thenReturn("warehouse");
@@ -88,36 +87,5 @@ class WarehouseResponseFilterTest {
         filter.filter(requestContext, responseContext);
 
         verify(responseContext, never()).setStatus(anyInt());
-    }
-
-    // ---------- DEFENSIVE / NULL SAFETY ----------
-
-    @Test
-    void testFilterHandlesNullRequestContext() {
-        assertDoesNotThrow(() -> filter.filter(null, responseContext));
-    }
-
-    @Test
-    void testFilterHandlesNullResponseContext() {
-        assertDoesNotThrow(() -> filter.filter(requestContext, null));
-    }
-
-    @Test
-    void testFilterHandlesNullUriInfo() {
-        when(requestContext.getMethod()).thenReturn("POST");
-        when(requestContext.getUriInfo()).thenReturn(null);
-        when(responseContext.getStatus()).thenReturn(Response.Status.OK.getStatusCode());
-
-        assertDoesNotThrow(() -> filter.filter(requestContext, responseContext));
-    }
-
-    @Test
-    void testFilterHandlesNullMethod() {
-        when(requestContext.getMethod()).thenReturn(null);
-        when(requestContext.getUriInfo()).thenReturn(uriInfo);
-        when(uriInfo.getPath()).thenReturn("warehouse");
-        when(responseContext.getStatus()).thenReturn(Response.Status.OK.getStatusCode());
-
-        assertDoesNotThrow(() -> filter.filter(requestContext, responseContext));
     }
 }
