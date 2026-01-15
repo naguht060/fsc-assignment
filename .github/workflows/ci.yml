@@ -18,10 +18,10 @@ jobs:
           POSTGRES_PASSWORD: quarkus_test
           POSTGRES_DB: quarkus_test
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U quarkus_test"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
         ports:
           - 5432:5432
 
@@ -30,7 +30,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2️⃣ Make Maven wrapper executable
+      # 2️⃣ Ensure Maven wrapper is executable
       - name: Make Maven wrapper executable
         run: chmod +x ./mvnw
 
@@ -42,18 +42,22 @@ jobs:
           java-version: '17'
           cache: maven
 
-      # 4️⃣ Run tests with coverage
+      # 4️⃣ Wait for Postgres to be ready
+      - name: Wait for Postgres
+        run: |
+          until pg_isready -h localhost -p 5432 -U quarkus_test; do
+            echo "Waiting for Postgres..."
+            sleep 5
+          done
+
+      # 5️⃣ Build and run tests with coverage
       - name: Build and test with coverage
         env:
           QUARKUS_DATASOURCE_DEVSERVICES_ENABLED: false
           QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://localhost:5432/quarkus_test
           QUARKUS_DATASOURCE_USERNAME: quarkus_test
           QUARKUS_DATASOURCE_PASSWORD: quarkus_test
-        run: ./mvnw clean test
-
-      # 5️⃣ Generate coverage report
-      - name: Generate coverage report
-        run: ./mvnw jacoco:report
+        run: ./mvnw clean test jacoco:report
 
       # 6️⃣ Check coverage threshold
       - name: Check coverage threshold
