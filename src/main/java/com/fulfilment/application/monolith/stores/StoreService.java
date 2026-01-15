@@ -17,10 +17,12 @@ public class StoreService {
 
   @Inject TransactionSynchronizationRegistry transactionSynchronizationRegistry;
 
+  @Transactional
   public List<Store> listAll() {
     return Store.listAll(Sort.by("name"));
   }
 
+  @Transactional
   public Store findByIdOrThrow(Long id) {
     Store entity = Store.findById(id);
     if (entity == null) {

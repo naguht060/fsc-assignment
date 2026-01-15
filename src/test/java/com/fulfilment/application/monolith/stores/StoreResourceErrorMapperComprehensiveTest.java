@@ -189,8 +189,7 @@ public class StoreResourceErrorMapperComprehensiveTest {
 
   @Test
   public void testMapThrowableMessage() {
-    Throwable throwable = new Throwable("Generic throwable error");
-    Exception ex = (Exception) throwable;
+    Exception ex = new Exception("Generic throwable error");
 
     Response response = errorMapper.toResponse(ex);
 

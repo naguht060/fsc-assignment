@@ -6,10 +6,12 @@ import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.WebApplicationException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import java.util.UUID;
 
 /**
  * Additional edge case tests for StoreService patch method and error scenarios.
@@ -19,13 +21,22 @@ import org.junit.jupiter.api.TestMethodOrder;
 public class StoreServiceEdgeCasesTest {
 
   @Inject StoreService storeService;
+  
+  private String uniqueSuffix;
+
+  @BeforeEach
+  @Transactional
+  public void setUp() {
+    // Generate unique suffix for test stores
+    uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
+  }
 
   @Test
   @Order(1)
   @Transactional
   public void testPatchWithNullNameThrows() {
     Store store = new Store();
-    store.name = "PATCH_TEST_1";
+    store.name = "PATCH_TEST_" + uniqueSuffix;
     store.quantityProductsInStock = 10;
     store.persist();
 
@@ -57,18 +68,18 @@ public class StoreServiceEdgeCasesTest {
   public void testPatchPreservesNameWhenZeroQuantity() {
     // Create a store with initial name and quantity
     Store initialStore = new Store();
-    initialStore.name = "ORIGINAL_NAME";
+    initialStore.name = "ORIGINAL_NAME_" + uniqueSuffix;
     initialStore.quantityProductsInStock = 50;
     initialStore.persist();
 
     // Patch with zero quantity - the patch logic checks (entity.quantityProductsInStock != 0)
     // which means if current quantity is NOT zero, it will update to the new value
     Store patchStore = new Store();
-    patchStore.name = "PATCHED_NAME";
+    patchStore.name = "PATCHED_NAME_" + uniqueSuffix;
     patchStore.quantityProductsInStock = 0; // Zero will be applied
 
     Store result = storeService.patch(initialStore.id, patchStore);
-    assertEquals("PATCHED_NAME", result.name);
+    assertEquals("PATCHED_NAME_" + uniqueSuffix, result.name);
     // Quantity should be updated to 0
     assertEquals(0, result.quantityProductsInStock);
   }
@@ -79,16 +90,16 @@ public class StoreServiceEdgeCasesTest {
   public void testPatchWithNullQuantityStaysZero() {
     // Create a store with no name set (null name)
     Store store = new Store();
-    store.name = "TEST_STORE";
+    store.name = "TEST_STORE_" + uniqueSuffix;
     store.quantityProductsInStock = 100;
     store.persist();
 
     Store patchStore = new Store();
-    patchStore.name = "NEW_NAME";
+    patchStore.name = "NEW_NAME_" + uniqueSuffix;
     patchStore.quantityProductsInStock = 50;
 
     Store result = storeService.patch(store.id, patchStore);
-    assertEquals("NEW_NAME", result.name);
+    assertEquals("NEW_NAME_" + uniqueSuffix, result.name);
     assertEquals(50, result.quantityProductsInStock);
   }
 
@@ -97,7 +108,7 @@ public class StoreServiceEdgeCasesTest {
   @Transactional
   public void testUpdateNullNameThrows() {
     Store store = new Store();
-    store.name = "UPDATE_TEST_STORE";
+    store.name = "UPDATE_TEST_STORE_" + uniqueSuffix;
     store.persist();
 
     Store updateStore = new Store();
