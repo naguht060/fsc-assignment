@@ -237,12 +237,12 @@ public class WarehouseResourceImplComprehensiveTest {
         .then()
         .statusCode(201);
 
-    // Now replace it
+    // Now replace it - stock must match the existing warehouse
     var replaceRequest = """
         {
           "location": "HAGUE-UPDATED",
           "capacity": 250,
-          "stock": 75
+          "stock": 50
         }
         """;
 
