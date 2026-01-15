@@ -61,7 +61,7 @@ jobs:
 
       # 6️⃣ Check coverage threshold
       - name: Check coverage threshold
-        run: ./mvnw jacoco:check
+        run: ./mvnw clean verify
 
       # 7️⃣ Upload coverage reports
       - name: Upload coverage reports
